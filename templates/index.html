@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>AI Ticket System</title>
+    <style>
+        body { font-family: Arial; padding: 40px; }
+        input, textarea { width: 300px; margin-bottom: 10px; }
+        button { padding: 10px; }
+        pre { background: #f4f4f4; padding: 10px; }
+    </style>
+</head>
+<body>
+
+<h2>🎫 Create Ticket</h2>
+
+<form id="ticketForm">
+    <input type="text" id="title" placeholder="Title" required><br>
+    <textarea id="description" placeholder="Description" required></textarea><br>
+    <input type="email" id="email" placeholder="Email" required><br>
+    <button type="submit">Submit</button>
+</form>
+
+<h3>📩 Response:</h3>
+<pre id="responseBox"></pre>
+
+<script>
+document.getElementById("ticketForm").addEventListener("submit", async function(e) {
+    e.preventDefault();
+
+    const data = {
+        title: document.getElementById("title").value,
+        description: document.getElementById("description").value,
+        email: document.getElementById("email").value
+    };
+
+    const res = await fetch("/ticket", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify(data)
+    });
+
+    const result = await res.json();
+    document.getElementById("responseBox").innerText = result.response;
+});
+</script>
+
+</body>
+</html>
