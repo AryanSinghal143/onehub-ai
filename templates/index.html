@@ -2,65 +2,38 @@
 <html>
 <head>
     <title>AI Ticket System</title>
-    <style>
-        body { font-family: Arial; background: #f5f7fa; padding: 40px; }
-        input, textarea { width: 300px; padding: 8px; margin-bottom: 10px; }
-        button { padding: 10px 20px; background: #007bff; color: white; border: none; cursor: pointer; }
-        pre { background: #222; color: #0f0; padding: 10px; }
-    </style>
 </head>
 <body>
 
-<h2>🎫 Create Ticket</h2>
+<h2>Create Ticket</h2>
 
 <form id="form">
-    <input id="title" placeholder="Title" required><br>
-    <textarea id="desc" placeholder="Description" required></textarea><br>
-    <input id="email" placeholder="Email" required><br>
-    <button type="submit">Submit</button>
+    <input id="title" placeholder="Title"><br><br>
+    <textarea id="desc" placeholder="Description"></textarea><br><br>
+    <input id="email" placeholder="Email"><br><br>
+    <button>Submit</button>
 </form>
 
-<h3>📩 Response:</h3>
-<pre id="output"></pre>
-
-<h3>📋 All Tickets:</h3>
-<ul id="ticketList"></ul>
+<h3>Response:</h3>
+<pre id="out"></pre>
 
 <script>
-async function loadTickets() {
-    const res = await fetch("/tickets");
-    const data = await res.json();
-
-    const list = document.getElementById("ticketList");
-    list.innerHTML = "";
-
-    data.tickets.forEach(ticket => {
-        const li = document.createElement("li");
-        li.innerText = "ID: " + ticket[0] + " | " + ticket[1] + " | Status: " + ticket[5];
-        list.appendChild(li);
-    });
-}
-
-document.getElementById("form").addEventListener("submit", async (e) => {
+form.onsubmit = async (e)=>{
     e.preventDefault();
 
-    const res = await fetch("/ticket", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify({
-            title: document.getElementById("title").value,
-            description: document.getElementById("desc").value,
-            email: document.getElementById("email").value
+    let res = await fetch("/ticket",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({
+            title:title.value,
+            description:desc.value,
+            email:email.value
         })
     });
 
-    const data = await res.json();
-    document.getElementById("output").innerText = data.response;
-
-    loadTickets();
-});
-
-loadTickets();
+    let data = await res.json();
+    out.innerText = data.response;
+}
 </script>
 
 </body>
