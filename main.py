@@ -10,11 +10,11 @@ from email.message import EmailMessage
 app = FastAPI()
 templates = Jinja2Templates(directory="templates")
 
-# ✅ Email config (use env variables in Render)
+# ✅ ENV VARIABLES
 EMAIL = os.getenv("EMAIL")
 PASSWORD = os.getenv("PASSWORD")
 
-# ✅ Database
+# ✅ DATABASE
 conn = sqlite3.connect("tickets.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -30,13 +30,13 @@ CREATE TABLE IF NOT EXISTS tickets (
 )
 """)
 
-# ✅ Model
+# ✅ MODEL
 class Ticket(BaseModel):
     title: str
     description: str
     email: str
 
-# ✅ AI Logic
+# ✅ AI LOGIC
 def detect_priority(text):
     text = text.lower()
     if any(x in text for x in ["urgent", "down", "critical"]):
@@ -61,24 +61,32 @@ Thanks,
 AI Support System
 """
 
-# ✅ Email Function
+# ✅ EMAIL FUNCTION (SAFE)
 async def send_email(to_email, body):
-    message = EmailMessage()
-    message["From"] = EMAIL
-    message["To"] = to_email
-    message["Subject"] = "Ticket Acknowledgement"
-    message.set_content(body)
+    if not EMAIL or not PASSWORD:
+        print("Email credentials not set")
+        return
 
-    await aiosmtplib.send(
-        message,
-        hostname="smtp.gmail.com",
-        port=587,
-        start_tls=True,
-        username=EMAIL,
-        password=PASSWORD
-    )
+    try:
+        message = EmailMessage()
+        message["From"] = EMAIL
+        message["To"] = to_email
+        message["Subject"] = "Ticket Acknowledgement"
+        message.set_content(body)
 
-# ✅ Routes
+        await aiosmtplib.send(
+            message,
+            hostname="smtp.gmail.com",
+            port=587,
+            start_tls=True,
+            username=EMAIL,
+            password=PASSWORD
+        )
+
+    except Exception as e:
+        print("EMAIL ERROR:", e)
+
+# ✅ ROUTES
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
@@ -93,7 +101,7 @@ async def create_ticket(ticket: Ticket):
     )
     conn.commit()
 
-    # ✅ Send Email
+    # ✅ SAFE EMAIL (won’t crash)
     await send_email(ticket.email, response)
 
     return {"response": response}
