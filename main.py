@@ -4,10 +4,17 @@ from fastapi.templating import Jinja2Templates
 import sqlite3
 from datetime import datetime
 import os
+import aiosmtplib
+from email.message import EmailMessage
 
 app = FastAPI()
-templates = Jinja2Templates(directory=os.path.join(os.getcwd(), "templates"))
+templates = Jinja2Templates(directory="templates")
 
+# ✅ Email config (use env variables in Render)
+EMAIL = os.getenv("EMAIL")
+PASSWORD = os.getenv("PASSWORD")
+
+# ✅ Database
 conn = sqlite3.connect("tickets.db", check_same_thread=False)
 cursor = conn.cursor()
 
@@ -23,76 +30,70 @@ CREATE TABLE IF NOT EXISTS tickets (
 )
 """)
 
+# ✅ Model
 class Ticket(BaseModel):
     title: str
     description: str
     email: str
 
+# ✅ AI Logic
 def detect_priority(text):
     text = text.lower()
-    if any(word in text for word in ["urgent", "down", "critical", "failure"]):
+    if any(x in text for x in ["urgent", "down", "critical"]):
         return "High"
-    elif any(word in text for word in ["error", "issue", "fail"]):
+    elif any(x in text for x in ["error", "issue"]):
         return "Medium"
     return "Low"
 
-def detect_category(text):
-    text = text.lower()
-    if "api" in text:
-        return "API Issue"
-    elif "network" in text:
-        return "Network Issue"
-    elif "login" in text:
-        return "Authentication Issue"
-    elif "payment" in text:
-        return "Billing Issue"
-    return "General Query"
-
 def generate_response(ticket):
-    priority = detect_priority(ticket.description)
-    category = detect_category(ticket.description)
-    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
     return f"""
 Hi,
 
 ✅ Your ticket has been received.
 
 📌 Title: {ticket.title}
-📂 Category: {category}
-⚡ Priority: {priority}
-🕒 Time: {time}
+⚡ Priority: {detect_priority(ticket.description)}
+🕒 Time: {datetime.now()}
 
-Our team is actively working on this issue and will update you shortly.
+Our team is working on it.
 
 Thanks,
 AI Support System
 """
 
+# ✅ Email Function
+async def send_email(to_email, body):
+    message = EmailMessage()
+    message["From"] = EMAIL
+    message["To"] = to_email
+    message["Subject"] = "Ticket Acknowledgement"
+    message.set_content(body)
+
+    await aiosmtplib.send(
+        message,
+        hostname="smtp.gmail.com",
+        port=587,
+        start_tls=True,
+        username=EMAIL,
+        password=PASSWORD
+    )
+
+# ✅ Routes
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
 @app.post("/ticket")
-def create_ticket(ticket: Ticket):
+async def create_ticket(ticket: Ticket):
     response = generate_response(ticket)
-    status = "Open"
 
     cursor.execute(
         "INSERT INTO tickets (title, description, email, response, status, created_at) VALUES (?, ?, ?, ?, ?, ?)",
-        (ticket.title, ticket.description, ticket.email, response, status, str(datetime.now()))
+        (ticket.title, ticket.description, ticket.email, response, "Open", str(datetime.now()))
     )
     conn.commit()
 
+    # ✅ Send Email
+    await send_email(ticket.email, response)
+
     return {"response": response}
-
-@app.get("/tickets")
-def get_tickets():
-    cursor.execute("SELECT * FROM tickets ORDER BY id DESC")
-    return {"tickets": cursor.fetchall()}
-
-@app.put("/ticket/{ticket_id}")
-def update_status(ticket_id: int):
-    cursor.execute("UPDATE tickets SET status='Resolved' WHERE id=?", (ticket_id,))
-    conn.commit()
-    return {"message": "Ticket resolved"}
