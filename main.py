@@ -1,36 +1,23 @@
 from fastapi import FastAPI, Request
-from pydantic import BaseModel
 from fastapi.templating import Jinja2Templates
-import sqlite3
+from pydantic import BaseModel
 from datetime import datetime
-import os
 
 app = FastAPI()
+templates = Jinja2Templates(directory="templates")
 
-templates = Jinja2Templates(directory=os.path.join(os.getcwd(), "templates"))
+# ---------------- AI LOGIC ---------------- #
 
-# DATABASE
-conn = sqlite3.connect("tickets.db", check_same_thread=False)
-cursor = conn.cursor()
+def detect_category(text):
+    text = text.lower()
+    if "network" in text:
+        return "Network"
+    elif "ui" in text or "screen" in text:
+        return "UI"
+    elif "api" in text or "backend" in text:
+        return "Service"
+    return "FE"
 
-cursor.execute("""
-CREATE TABLE IF NOT EXISTS tickets (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    title TEXT,
-    description TEXT,
-    email TEXT,
-    response TEXT,
-    created_at TEXT
-)
-""")
-
-# MODEL
-class Ticket(BaseModel):
-    title: str
-    description: str
-    email: str
-
-# LOGIC
 def detect_priority(text):
     text = text.lower()
     if "urgent" in text or "down" in text:
@@ -39,38 +26,64 @@ def detect_priority(text):
         return "Medium"
     return "Low"
 
-def generate_response(ticket):
-    priority = detect_priority(ticket.description)
-    time = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+# ---------------- MODELS ---------------- #
 
-    return f"""
-Hi,
+class Ticket(BaseModel):
+    title: str
+    description: str
+    email: str
 
-Your ticket has been received successfully.
+# ---------------- ROUTES ---------------- #
 
-Title: {ticket.title}
-Priority: {priority}
-Time: {time}
-
-Our team is working on it and will update you soon.
-
-Thanks,
-AI Support System
-"""
-
-# ROUTES
 @app.get("/")
 def home(request: Request):
     return templates.TemplateResponse("index.html", {"request": request})
 
+# ✅ Manual ticket (your form)
 @app.post("/ticket")
-def create_ticket(ticket: Ticket):
-    response = generate_response(ticket)
+async def create_ticket(ticket: Ticket):
+    try:
+        category = detect_category(ticket.description)
+        priority = detect_priority(ticket.description)
+        jira_id = f"JIRA-{int(datetime.now().timestamp())}"
 
-    cursor.execute(
-        "INSERT INTO tickets (title, description, email, response, created_at) VALUES (?, ?, ?, ?, ?)",
-        (ticket.title, ticket.description, ticket.email, response, str(datetime.now()))
-    )
-    conn.commit()
+        response = {
+            "message": "Ticket created successfully",
+            "title": ticket.title,
+            "category": category,
+            "priority": priority,
+            "ticket_id": jira_id
+        }
 
-    return {"response": response}
+        return response
+
+    except Exception as e:
+        print("ERROR:", e)
+        return {"message": "Something went wrong"}
+
+# ✅ Multi-source tickets (OneHub + Jira + Zendesk)
+@app.get("/process-tickets")
+def process_tickets():
+    try:
+        # Simulated data
+        tickets = [
+            {"source": "OneHub", "title": "App not loading", "description": "App down urgent"},
+            {"source": "Jira", "title": "API error", "description": "500 error in backend"},
+            {"source": "Zendesk", "title": "Login issue", "description": "User cannot login"}
+        ]
+
+        processed = []
+
+        for t in tickets:
+            processed.append({
+                "source": t["source"],
+                "title": t["title"],
+                "category": detect_category(t["description"]),
+                "priority": detect_priority(t["description"])
+            })
+
+        return {"data": processed}
+
+    except Exception as e:
+        print("ERROR:", e)
+        return {"data": []}
