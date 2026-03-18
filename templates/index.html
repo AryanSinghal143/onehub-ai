@@ -1,47 +1,74 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>AI Ticket System</title>
-    <style>
-        body { font-family: Arial; padding: 40px; }
-        input, textarea { width: 300px; margin-bottom: 10px; }
-        button { padding: 10px; }
-        pre { background: #f4f4f4; padding: 10px; }
-    </style>
+    <title>Smart Ticket System</title>
 </head>
 <body>
 
-<h2>🎫 Create Ticket</h2>
+<h2>Create Ticket</h2>
 
-<form id="ticketForm">
-    <input type="text" id="title" placeholder="Title" required><br>
-    <textarea id="description" placeholder="Description" required></textarea><br>
-    <input type="email" id="email" placeholder="Email" required><br>
-    <button type="submit">Submit</button>
-</form>
+<input id="title" placeholder="Title"><br><br>
+<textarea id="description" placeholder="Description"></textarea><br><br>
+<input id="email" placeholder="Email"><br><br>
 
-<h3>📩 Response:</h3>
-<pre id="responseBox"></pre>
+<button onclick="submitTicket()">Submit</button>
+
+<h3 id="response"></h3>
+
+<hr>
+
+<h2>Multi-Source Tickets</h2>
+<button onclick="loadTickets()">Load Tickets</button>
+
+<div id="tickets"></div>
 
 <script>
-document.getElementById("ticketForm").addEventListener("submit", async function(e) {
-    e.preventDefault();
+async function submitTicket() {
+    const title = document.getElementById("title").value;
+    const description = document.getElementById("description").value;
+    const email = document.getElementById("email").value;
 
-    const data = {
-        title: document.getElementById("title").value,
-        description: document.getElementById("description").value,
-        email: document.getElementById("email").value
-    };
+    try {
+        const res = await fetch("/ticket", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ title, description, email })
+        });
 
-    const res = await fetch("/ticket", {
-        method: "POST",
-        headers: {"Content-Type": "application/json"},
-        body: JSON.stringify(data)
+        const data = await res.json();
+
+        document.getElementById("response").innerText =
+            "✅ " + data.message +
+            "\nCategory: " + data.category +
+            "\nPriority: " + data.priority +
+            "\nTicket ID: " + data.ticket_id;
+
+    } catch (err) {
+        document.getElementById("response").innerText = "❌ Error occurred";
+    }
+}
+
+async function loadTickets() {
+    const res = await fetch("/process-tickets");
+    const data = await res.json();
+
+    let html = "";
+
+    data.data.forEach(t => {
+        html += `
+            <div style="border:1px solid black; margin:10px; padding:10px;">
+                <b>Source:</b> ${t.source}<br>
+                <b>Title:</b> ${t.title}<br>
+                <b>Category:</b> ${t.category}<br>
+                <b>Priority:</b> ${t.priority}
+            </div>
+        `;
     });
 
-    const result = await res.json();
-    document.getElementById("responseBox").innerText = result.response;
-});
+    document.getElementById("tickets").innerHTML = html;
+}
 </script>
 
 </body>
