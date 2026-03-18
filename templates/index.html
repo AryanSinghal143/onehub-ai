@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head><title>Smart Ticket System</title></head>
+<body>
+
+<h2>Create Ticket</h2>
+
+<input id="title" placeholder="Title"><br><br>
+<textarea id="description" placeholder="Description"></textarea><br><br>
+<input id="email" placeholder="Email"><br><br>
+
+<button onclick="submitTicket()">Submit</button>
+
+<h3 id="response"></h3>
+
+<hr>
+
+<h2>Dashboard</h2>
+<button onclick="loadDashboard()">Load Stats</button>
+<div id="dashboard"></div>
+
+<script>
+async function submitTicket() {
+    const title = document.getElementById("title").value;
+    const description = document.getElementById("description").value;
+    const email = document.getElementById("email").value;
+
+    const res = await fetch("/ticket", {
+        method: "POST",
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({title, description, email})
+    });
+
+    const data = await res.json();
+
+    document.getElementById("response").innerText =
+        data.message + "\nTicket ID: " + data.ticket_id;
+}
+
+async function loadDashboard() {
+    const res = await fetch("/dashboard");
+    const data = await res.json();
+
+    document.getElementById("dashboard").innerText =
+        "Total Tickets: " + data.total_tickets;
+}
+</script>
+
+</body>
+</html>
